@@ -46,6 +46,7 @@ namespace AntSK.Domain.Repositories
         /// <summary>
         /// 默认
         /// </summary>
+        [SugarColumn(DefaultValue = "false")]
         public bool Defalut { get; set; }
     }
 }
