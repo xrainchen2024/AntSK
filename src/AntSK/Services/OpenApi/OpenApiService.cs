@@ -125,7 +125,8 @@ namespace AntSK.Services.OpenApi
             var chat = _kernel.GetRequiredService<IChatCompletionService>();
 
             var temperature = app.Temperature / 100;//存的是0~100需要缩小
-            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
+            var maxTokens = app.MaxAskPromptSize + app.AnswerTokens;
+            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature, MaxTokens = maxTokens };
             List<string> completionList = new List<string>();
             if (!string.IsNullOrEmpty(app.ApiFunctionList) || !string.IsNullOrEmpty(app.NativeFunctionList))//这里还需要加上本地插件的
             {
@@ -206,7 +207,7 @@ namespace AntSK.Services.OpenApi
 
                 //KernelFunction jsonFun = _kernel.Plugins.GetFunction("KMSPlugin", "Ask1");
                 var temperature = app.Temperature / 100;//存的是0~100需要缩小
-                OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
+                OpenAIPromptExecutionSettings settings = new() { Temperature = temperature};
                 var func = _kernel.CreateFunctionFromPrompt(app.Prompt, settings);
                 var chatResult = await _kernel.InvokeAsync(function: func,
                     arguments: new KernelArguments() { ["doc"] = dataMsg, ["history"] = string.Join("\n", history.Select(x => x.Role + ": " + x.Content)), ["input"] = questions });

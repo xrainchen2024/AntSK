@@ -41,7 +41,8 @@ namespace AntSK.Domain.Domain.Service
             var _kernel = _kernelService.GetKernelByApp(app);
             var chat = _kernel.GetRequiredService<IChatCompletionService>();
             var temperature = app.Temperature / 100;//存的是0~100需要缩小
-            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
+            var maxTokens = app.MaxAskPromptSize + app.AnswerTokens;
+            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature, MaxTokens = maxTokens };
             List<string> completionList = new List<string>();
             if (!string.IsNullOrEmpty(app.ApiFunctionList) || !string.IsNullOrEmpty(app.NativeFunctionList))//这里还需要加上本地插件的
             {
