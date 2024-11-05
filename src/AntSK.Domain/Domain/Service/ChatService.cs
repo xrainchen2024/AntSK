@@ -41,8 +41,11 @@ namespace AntSK.Domain.Domain.Service
             var _kernel = _kernelService.GetKernelByApp(app);
             var chat = _kernel.GetRequiredService<IChatCompletionService>();
             var temperature = app.Temperature / 100;//存的是0~100需要缩小
-            var maxTokens = app.MaxAskPromptSize + app.AnswerTokens;
-            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature, MaxTokens = maxTokens };
+            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
+            if (app.AnswerTokens != 2048)
+            {
+                settings.MaxTokens = app.MaxAskPromptSize + app.AnswerTokens;
+            }
             List<string> completionList = new List<string>();
             if (!string.IsNullOrEmpty(app.ApiFunctionList) || !string.IsNullOrEmpty(app.NativeFunctionList))//这里还需要加上本地插件的
             {
@@ -106,7 +109,7 @@ namespace AntSK.Domain.Domain.Service
                 {
                     var fileId = match.Value;
 
-                    var status=await  memory.IsDocumentReadyAsync(fileId, index: KmsConstantcs.KmsIndex);
+                    var status = await memory.IsDocumentReadyAsync(fileId, index: KmsConstantcs.KmsIndex);
                     if (!status)
                     {
                         var result = await memory.ImportDocumentAsync(new Document(fileId).AddFile(filePath)
@@ -137,7 +140,7 @@ namespace AntSK.Domain.Domain.Service
             {
                 if (!string.IsNullOrEmpty(app.RerankModelID))
                 {
-                    var rerankModel=_aIModels_Repositories.GetById(app.RerankModelID);
+                    var rerankModel = _aIModels_Repositories.GetById(app.RerankModelID);
                     BegRerankConfig.LoadModel(rerankModel.EndPoint, rerankModel.ModelName);
                     //进行rerank
                     foreach (var item in relevantSourceList)
@@ -146,11 +149,11 @@ namespace AntSK.Domain.Domain.Service
                         rerank.Add(questions);
                         rerank.Add(item.Text);
                         item.RerankScore = BegRerankConfig.Rerank(rerank);
-                      
+
                     }
                     relevantSourceList = relevantSourceList.OrderByDescending(p => p.RerankScore).Take(app.MaxMatchesCount).ToList();
                 }
-                    
+
                 bool isSearch = false;
                 foreach (var item in relevantSourceList)
                 {
@@ -163,7 +166,7 @@ namespace AntSK.Domain.Domain.Service
                             isSearch = true;
                         }
                     }
-                    else 
+                    else
                     {
                         //匹配相似度
                         if (item.Relevance >= app.Relevance / 100)
@@ -191,7 +194,7 @@ namespace AntSK.Domain.Domain.Service
                             string fileName = fileDetail.FileName;
                             fileDic.Add(item.SourceName, fileName);
                             item.SourceName = fileName;
-                        }       
+                        }
                     }
                     item.Text = Markdown.ToHtml(item.Text);
                 }
@@ -201,7 +204,7 @@ namespace AntSK.Domain.Domain.Service
                     //KernelFunction jsonFun = _kernel.Plugins.GetFunction("KMSPlugin", "Ask1");
                     var temperature = app.Temperature / 100;//存的是0~100需要缩小
                     OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
-                    var func = _kernel.CreateFunctionFromPrompt(app.Prompt , settings);
+                    var func = _kernel.CreateFunctionFromPrompt(app.Prompt, settings);
 
                     var chatResult = _kernel.InvokeStreamingAsync(function: func,
                         arguments: new KernelArguments() { ["doc"] = dataMsg.ToString(), ["history"] = string.Join("\n", history.Select(x => x.Role + ": " + x.Content)), ["input"] = questions });

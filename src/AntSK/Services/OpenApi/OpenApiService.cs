@@ -42,7 +42,7 @@ namespace AntSK.Services.OpenApi
                 switch (app.Type)
                 {
                     case "chat":
-                        (questions, history) = await GetHistory(model,app.Prompt);
+                        (questions, history) = await GetHistory(model, app.Prompt);
                         //普通会话
                         history.AddUserMessage(questions);
                         if (model.stream)
@@ -51,7 +51,7 @@ namespace AntSK.Services.OpenApi
                             result1.created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                             result1.choices = new List<StreamChoicesModel>()
                                 { new StreamChoicesModel() { delta = new OpenAIMessage() { role = "assistant" } } };
-                            await SendChatStream(HttpContext, result1, app,history);
+                            await SendChatStream(HttpContext, result1, app, history);
                             return;
                         }
                         else
@@ -67,7 +67,7 @@ namespace AntSK.Services.OpenApi
                         }
                         break;
                     case "kms":
-                        (questions, history) = await GetHistory(model,"");
+                        (questions, history) = await GetHistory(model, "");
                         //知识库问答
                         if (model.stream)
                         {
@@ -75,7 +75,7 @@ namespace AntSK.Services.OpenApi
                             result3.created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                             result3.choices = new List<StreamChoicesModel>()
                                 { new StreamChoicesModel() { delta = new OpenAIMessage() { role = "assistant" } } };
-                            await SendKmsStream(HttpContext, result3, app, questions,history);
+                            await SendKmsStream(HttpContext, result3, app, questions, history);
                         }
                         else
                         {
@@ -83,7 +83,7 @@ namespace AntSK.Services.OpenApi
                             result4.created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                             result4.choices = new List<ChoicesModel>()
                                 { new ChoicesModel() { message = new OpenAIMessage() { role = "assistant" } } };
-                            result4.choices[0].message.content = await SendKms(questions,history, app);
+                            result4.choices[0].message.content = await SendKms(questions, history, app);
                             HttpContext.Response.ContentType = "application/json";
                             await HttpContext.Response.WriteAsync(JsonConvert.SerializeObject(result4));
                             await HttpContext.Response.CompleteAsync();
@@ -125,8 +125,11 @@ namespace AntSK.Services.OpenApi
             var chat = _kernel.GetRequiredService<IChatCompletionService>();
 
             var temperature = app.Temperature / 100;//存的是0~100需要缩小
-            var maxTokens = app.MaxAskPromptSize + app.AnswerTokens;
-            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature, MaxTokens = maxTokens };
+            OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
+            if (app.AnswerTokens != 2048)
+            {
+                settings.MaxTokens = app.MaxAskPromptSize + app.AnswerTokens;
+            }
             List<string> completionList = new List<string>();
             if (!string.IsNullOrEmpty(app.ApiFunctionList) || !string.IsNullOrEmpty(app.NativeFunctionList))//这里还需要加上本地插件的
             {
@@ -164,7 +167,7 @@ namespace AntSK.Services.OpenApi
             return "";
         }
 
-        private async Task SendKmsStream(HttpContext HttpContext, OpenAIStreamResult result, Apps app, string questions,ChatHistory history)
+        private async Task SendKmsStream(HttpContext HttpContext, OpenAIStreamResult result, Apps app, string questions, ChatHistory history)
         {
             HttpContext.Response.Headers.Add("Content-Type", "text/event-stream;charset=utf-8");
             var chatResult = _chatService.SendKmsByAppAsync(app, questions, history, "");
@@ -207,7 +210,7 @@ namespace AntSK.Services.OpenApi
 
                 //KernelFunction jsonFun = _kernel.Plugins.GetFunction("KMSPlugin", "Ask1");
                 var temperature = app.Temperature / 100;//存的是0~100需要缩小
-                OpenAIPromptExecutionSettings settings = new() { Temperature = temperature};
+                OpenAIPromptExecutionSettings settings = new() { Temperature = temperature };
                 var func = _kernel.CreateFunctionFromPrompt(app.Prompt, settings);
                 var chatResult = await _kernel.InvokeAsync(function: func,
                     arguments: new KernelArguments() { ["doc"] = dataMsg, ["history"] = string.Join("\n", history.Select(x => x.Role + ": " + x.Content)), ["input"] = questions });
@@ -227,7 +230,7 @@ namespace AntSK.Services.OpenApi
         /// <param name="app"></param>
         /// <param name="model"></param>
         /// <returns></returns>
-        private async Task<(string,ChatHistory)> GetHistory(OpenAIModel model,string systemPrompt)
+        private async Task<(string, ChatHistory)> GetHistory(OpenAIModel model, string systemPrompt)
         {
             ChatHistory history = new ChatHistory();
             if (!string.IsNullOrEmpty(systemPrompt))
@@ -235,7 +238,7 @@ namespace AntSK.Services.OpenApi
                 history = new ChatHistory(systemPrompt);
             }
             string questions = model.messages[model.messages.Count - 1].content;
-            for (int i = 0; i < model.messages.Count()-1 ; i++)
+            for (int i = 0; i < model.messages.Count() - 1; i++)
             {
                 var item = model.messages[i];
                 if (item.role.ComparisonIgnoreCase("user"))
@@ -251,7 +254,7 @@ namespace AntSK.Services.OpenApi
                     history.AddSystemMessage(item.content);
                 }
             }
-            return (questions,history);
+            return (questions, history);
         }
     }
 }
